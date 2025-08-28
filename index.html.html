@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Konzept bkV-Rechner</title>
+  <style>
+    :root{
+      --bg:#0f1319; --panel:#141a22; --panel-2:#18212c; --line:#202a36; --text:#e8edf5; --muted:#b9c2cf; --brand:#d4af37; --brand-2:#0d2a47; --accent:#ff7a00;
+    }
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#121720,#0f1319 30%);color:var(--text)}
+    .wrap{max-width:1200px;margin:0 auto;padding:24px}
+    .hero{background:linear-gradient(90deg,var(--brand-2),#123861 60%,#1a2230);border:1px solid #1e2a3b;padding:18px 20px;border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.45)}
+    .hero h1{margin:0;font-size:24px;font-weight:900}
+    .badge{display:inline-block;margin-top:8px;margin-right:10px;background:rgba(212,175,55,.14);border:1px solid rgba(212,175,55,.35);color:var(--brand);padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;margin-top:18px}
+    @media(max-width:1000px){.grid{grid-template-columns:1fr}}
+    .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+    .card h3{margin:0;padding:18px 18px 0;font-size:16px;color:#f6f8fb}
+    .card .body{padding:14px 18px 18px}
+    label{display:block;color:#dfe6f2;font-size:12px;margin:10px 0 6px;text-transform:uppercase}
+    input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #2b3646;background:#0f1319;color:#e9eef6}
+    .row{display:flex;align-items:center;gap:10px}
+    .seg{display:flex;background:#0f1319;border:1px solid #2b3646;border-radius:12px;padding:4px}
+    .seg button{flex:1;border:0;background:transparent;color:#cbd6e6;padding:10px;border-radius:8px;cursor:pointer;font-weight:700}
+    .seg button.active{background:linear-gradient(180deg,#18314a,#142637);color:#fff}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .kpi{background:#0f1319;border:1px solid #2b3646;border-radius:12px;padding:12px}
+    .kpi .lbl{font-size:12px;color:#a9b6c8}
+    .kpi .val{font-size:20px;font-weight:900}
+    .btn-primary{display:inline-flex;gap:10px;align-items:center;justify-content:center;padding:14px 16px;border-radius:12px;border:1px solid #3b2b09;background:linear-gradient(180deg,#f1cd57,#d4af37 60%,#b38e23);color:#0d2a47;font-weight:900;text-decoration:none;margin-top:14px}
+    .hint{font-size:11px;color:#9fb0c7;margin-top:4px}
+
+    /* Toggle Switch */
+    .switch{position:relative;display:inline-block;width:46px;height:24px}
+    .switch input{opacity:0;width:0;height:0}
+    .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#444;border-radius:24px;transition:.3s}
+    .slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.3s}
+    input:checked + .slider{background:#d4af37}
+    input:checked + .slider:before{transform:translateX(22px)}
+
+    /* Tabs */
+    .tabs{margin-top:18px}
+    .tab-buttons{display:flex;gap:10px;border-bottom:1px solid var(--line)}
+    .tab-buttons button{display:flex;align-items:center;gap:6px;padding:10px;background:#0f1319;border:1px solid #2b3646;border-bottom:none;border-radius:12px 12px 0 0;color:#cbd6e6;cursor:pointer;font-weight:700}
+    .tab-buttons button.active{background:var(--panel-2);color:#fff}
+    .tab-content{border:1px solid var(--line);border-top:none;padding:16px;border-radius:0 0 12px 12px;background:linear-gradient(180deg,var(--panel),var(--panel-2));display:none}
+    .tab-content.active{display:block}
+    .tab-content ul{margin:0 0 0 18px;color:#dbe3ef}
+    .tab-content li{margin:6px 0}
+    .muted{color:#9fb0c7;font-size:13px;margin-top:8px}
+  </style>
+  <script>
+    const tariffs={aktiv:{"300":13,"600":22,"900":30,"1200":37,"1500":43},agil:{"300":24.22,"600":33.22,"900":41.22,"1200":48.22,"1500":54.22}};
+    const addonMonthly=1.66;
+    const bookingUrl='https://cal.com/antonio-la-gaipa-8hyyn7/analyse-termin?user=antonio-la-gaipa-8hyyn7';
+    function fmtEUR(x){const n=Number(x)||0;return n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';}
+    function calculate(){const N=+document.getElementById('employees').value||0;const tarif=document.querySelector('.seg button.active').dataset.value;const budget=document.getElementById('budget').value;const addon=document.getElementById('addon').checked?addonMonthly:0;const d=+document.getElementById('daysSaved').value||0;const c=+document.getElementById('costPerDay').value||0;const p=+document.getElementById('profitPerDay').value||0;const m=tariffs[tarif][budget];const monthlyCompany=N*(m+addon);const annualCompany=monthlyCompany*12;const daysSavedTotal=N*d;const wageSaving=daysSavedTotal*c;const profitSaving=daysSavedTotal*p;const totalSaving=wageSaving+profitSaving;const advantage=totalSaving-annualCompany;const roi=annualCompany>0?(advantage/annualCompany*100):null;const breakEvenDays=(N>0&&(c+p)>0)?(annualCompany/(N*(c+p))):null;const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val};set('kpi_month',fmtEUR(monthlyCompany));set('kpi_year',fmtEUR(annualCompany));set('kpi_save',fmtEUR(totalSaving));set('kpi_adv',fmtEUR(advantage));set('kpi_roi',roi!==null?(roi.toFixed(1)+' %'):'–');set('kpi_be',breakEvenDays!==null?breakEvenDays.toFixed(2):'–');set('tile_wage_saved',fmtEUR(wageSaving));set('tile_profit_saved',fmtEUR(profitSaving));const u=new URL(bookingUrl);u.searchParams.set('src','bkv');u.searchParams.set('emp',N);u.searchParams.set('tarif',tarif);u.searchParams.set('budget',budget);u.searchParams.set('addon',addon>0?'1':'0');const cta=document.getElementById('cta');if(cta)cta.href=u.toString();}
+    function init(){document.querySelectorAll('.seg button').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.seg button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');calculate();})});['employees','budget','addon','daysSaved','costPerDay','profitPerDay'].forEach(id=>{const el=document.getElementById(id);if(el){el.addEventListener('input',calculate);el.addEventListener('change',calculate)}});calculate();document.querySelectorAll('.tab-buttons button').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.tab-buttons button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));const panel=document.getElementById(btn.dataset.tab);if(panel) panel.classList.add('active');})});const first=document.querySelector('.tab-buttons button');if(first) first.click();}
+    document.addEventListener('DOMContentLoaded',init);
+  </script>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <h1>Konzept bkV‑Rechner</h1>
+    <div class="badge">Ohne Gesundheitsfragen</div>
+    <div class="badge" style="border-color:rgba(255,122,0,.45);color:#ffcf9e;background:rgba(255,122,0,.12)">Für Zimmerei & Handwerk optimiert</div>
+  </section>
+
+  <div class="grid" style="margin-top:18px">
+    <div class="card">
+      <h3>1) Einstellungen</h3>
+      <div class="body">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div><strong>Unfall Clinic+ hinzufügen</strong> <span class="muted">+1,66 € / MA</span></div>
+          <label class="switch">
+            <input id="addon" type="checkbox">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <label>Mitarbeiteranzahl</label>
+        <input id="employees" type="number" value="10" min="1"/>
+
+        <label>Tarif</label>
+        <div class="seg">
+          <button type="button" class="active" data-value="aktiv">Gesund Aktiv+</button>
+          <button type="button" data-value="agil">Gesund Agil+ (70% Zahn)</button>
+        </div>
+
+        <label>Budget</label>
+        <select id="budget">
+          <option value="300">300</option>
+          <option value="600">600</option>
+          <option value="900">900</option>
+          <option value="1200">1200</option>
+          <option value="1500">1500</option>
+        </select>
+
+        <label>Tage eingespart pro MA / Jahr</label>
+        <input id="daysSaved" type="number" value="3"/>
+
+        <label>Kosten pro Krankheitstag (Lohn)</label>
+        <input id="costPerDay" type="number" value="250"/>
+
+        <label>Entgangener Gewinn pro Tag</label>
+        <input id="profitPerDay" type="number" value="100"/>
+      </div>
+    </div>
+    <div class="card">
+      <h3>2) Ergebnisübersicht</h3>
+      <div class="body">
+        <div class="kpis">
+          <div class="kpi"><div class="lbl">Monatsbeitrag Firma</div><div class="val" id="kpi_month">–</div></div>
+          <div class="kpi"><div class="lbl">Jahresbeitrag Firma</div><div class="val" id="kpi_year">–</div></div>
+          <div class="kpi"><div class="lbl">Gesamtersparnis/Jahr</div><div class="val" id="kpi_save">–</div></div>
+          <div class="kpi"><div class="lbl">Vorteil durch bkV</div><div class="val" id="kpi_adv">–</div></div>
+        </div>
+        <div class="kpis" style="margin-top:10px">
+          <div class="kpi"><div class="lbl">ROI</div><div class="val" id="kpi_roi">–</div></div>
+          <div class="kpi"><div class="lbl">Break-even Tage/MA</div><div class="val" id="kpi_be">–</div></div>
+        </div>
+        <div class="kpis" style="margin-top:12px">
+          <div class="kpi"><div class="lbl">Direkte Lohnkosten (eingesparte Tage)</div><div class="val" id="tile_wage_saved">–</div></div>
+          <div class="kpi"><div class="lbl">Entgangener Gewinn (eingesparte Tage)</div><div class="val" id="tile_profit_saved">–</div></div>
+        </div>
+        <a id="cta" class="btn-primary" href="#" target="_blank">💬 Angebots‑Gespräch anfragen</a>
+        <div class="hint">Hinweis: Leads werden DSGVO-konform nur nach Einwilligung verarbeitet.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab-buttons">
+      <button data-tab="aktiv">🧱 Gesund Aktiv+</button>
+      <button data-tab="agil">🦷 Gesund Agil+</button>
+      <button data-tab="assist">🛟 Assistenzleistungen</button>
+      <button data-tab="unfall">🦺 Unfall Clinic+</button>
+    </div>
+    <div id="aktiv" class="tab-content">
+      <ul>
+        <li>🎯 Flexibles Gesundheitsbudget für Vorsorge, Sehhilfen, Physio, Massagen, Hilfsmittel.</li>
+        <li>🏥 Prävention & Früherkennung (z. B. PZR, Haut-/Augen-Checks, Impfungen).</li>
+        <li>💊 Zuzahlungen & erstattungsfähige Arznei-/Hilfsmittel.</li>
+        <li>📲 Einfache Abwicklung: Rechnung hochladen – Budget wird angerechnet.</li>
+      </ul>
+    </div>
+    <div id="agil" class="tab-content">
+      <ul>
+        <li>🔧 Enthält alle Aktiv+-Budgetvorteile.</li>
+        <li>🦷 Zusätzlich 70% Erstattung für Zahnleistungen (z. B. Zahnersatz, Implantate, Prothetik).</li>
+        <li>🪥 Prophylaxe wird finanziell entlastet.</li>
+        <li>📈 Sinnvoll, wenn Zahn-Themen im Team wichtig sind.</li>
+      </ul>
+    </div>
+    <div id="assist" class="tab-content">
+      <ul>
+        <li>📅 Arzttermin-Service: Schnelle Organisation von Terminen bei Fachärzten, Psychologen und Therapeuten.</li>
+        <li>💻 Videoberatung: Wartezeiten deutlich reduziert, Diagnose & Therapie per Videotelefonie, digitale Rezepte & AU.</li>
+        <li>🌍 Reise- & Impfberatung: Unterstützung vor, während und nach Reisen, inkl. medizinische Hilfe im Ausland.</li>
+        <li>📞 Gesundheitsberatung 24/7: Rund um die Uhr Infos zu Gesundheit, Ernährung, Therapie & Prävention.</li>
+        <li>🧠 Psychologische Beratung: Einfacher Zugang zu professioneller Unterstützung bei persönlichen & arbeitsbezogenen Problemen.</li>
+        <li>👵 Pflege-Assistance: 24/7-Pflegeberatung, Hilfe bei der Organisation von Einrichtungen und Pflegeleistungen.</li>
+        <li>🏥 Reha-Management: Koordination von Nachsorge & Reha zur schnelleren Genesung.</li>
+        <li>🔍 Zweitmeinungs-Service: Informierte Entscheidungen durch Fachärzte – Ausfallzeiten deutlich reduziert.</li>
+      </ul>
+      <div class="muted">✔ Diese Assistenzleistungen sind in <strong>beiden Haupttarifen (Aktiv+ & Agil+)</strong> inklusive.</div>
+    </div>
+    <div id="unfall" class="tab-content">
+      <ul>
+        <li>🦺 Ergänzt den Schutz bei privaten Unfällen (außerhalb der BG/Arbeitszeit).</li>
+        <li>🚑 Stationäre Heilbehandlung: Wahlarzt ohne GOÄ-Begrenzung, 1- oder 2-Bettzimmer, stationärersetzende ambulante Operationen, gesetzliche Zuzahlung, freie Krankenhauswahl.</li>
+        <li>👴 Pflegebedürftigkeit durch Unfall: Monatliches Pflegegeld.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hint" style="margin-top:15px">Auszugsweise Darstellung typischer Inhalte. Verbindlich sind ausschließlich die Versicherungsbedingungen / Leistungsübersichten des Anbieters und dein individueller Antrag. Budgets beziehen sich auf jährliche Gesundheitsbudgets je Mitarbeiter.</div>
+  <div class="hint">Hinweis: Diese Übersicht dient der schnellen Orientierung speziell für Handwerks Betriebe. Sie ersetzt keine individuelle Beratung und ist nicht rechtsverbindlich.</div>
+
+  <footer style="margin-top:20px">
+    <a class="muted" href="https://www.die-dachdecker-versicherung.de/" target="_blank">Webseite</a> ·
+    <a class="muted" href="https://signal-iduna-agentur.de/antonio.la-gaipa/impressum/?advnr=8962014" target="_blank">Impressum</a> ·
+    <a class="muted" href="https://signal-iduna-agentur.de/antonio.la-gaipa/datenschutz/" target="_blank">Datenschutz</a>
+  </footer>
+</div>
+</body>
+</html>
